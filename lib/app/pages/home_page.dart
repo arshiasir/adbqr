@@ -7,9 +7,54 @@ import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
 import '../controllers/home_controller.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 
-class HomePage extends GetView<HomeController> {
+class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final ipController = TextEditingController();
+  final portController = TextEditingController();
+  final codeController = TextEditingController();
+  final connectIpController = TextEditingController();
+
+  String get qrData {
+    final ip = ipController.text;
+    final port = portController.text;
+    final code = codeController.text;
+    return (ip.isNotEmpty && port.isNotEmpty && code.isNotEmpty)
+        ? 'adb://$ip:$port?pairingCode=$code'
+        : '';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fillLocalIp();
+  }
+
+  Future<void> _fillLocalIp() async {
+    final info = NetworkInfo();
+    final ip = await info.getWifiIP();
+    if (ip != null && ip.isNotEmpty) {
+      setState(() {
+        ipController.text = ip;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    ipController.dispose();
+    portController.dispose();
+    codeController.dispose();
+    connectIpController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickAndDecodeQr(BuildContext context) async {
     final result = await FilePicker.platform.pickFiles(type: FileType.image);
@@ -32,7 +77,7 @@ class HomePage extends GetView<HomeController> {
         try {
           final result = reader.decode(bitmap);
           if (result.text.isNotEmpty) {
-            controller.handleQrScan(result.text);
+            Get.find<HomeController>().handleQrScan(result.text);
             Get.snackbar('QR Code', 'QR code scanned: ${result.text}');
           } else {
             Get.snackbar('QR Code', 'No QR code found in image.');
@@ -48,11 +93,7 @@ class HomePage extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final ipController = TextEditingController();
-    final portController = TextEditingController();
-    final codeController = TextEditingController();
-    final connectIpController = TextEditingController();
-
+    final controller = Get.find<HomeController>();
     return Scaffold(
       appBar: AppBar(title: const Text('ADB QR Connect')),
       body: Padding(
@@ -66,6 +107,7 @@ class HomePage extends GetView<HomeController> {
                   child: TextField(
                     controller: ipController,
                     decoration: const InputDecoration(labelText: 'IP'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -73,6 +115,7 @@ class HomePage extends GetView<HomeController> {
                   child: TextField(
                     controller: portController,
                     decoration: const InputDecoration(labelText: 'Port'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -80,6 +123,7 @@ class HomePage extends GetView<HomeController> {
                   child: TextField(
                     controller: codeController,
                     decoration: const InputDecoration(labelText: 'Pairing Code'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -146,49 +190,41 @@ class HomePage extends GetView<HomeController> {
               ],
             ),
             const SizedBox(height: 8),
-            Obx(() {
-              final ip = ipController.text;
-              final port = portController.text;
-              final code = codeController.text;
-              final qrData = (ip.isNotEmpty && port.isNotEmpty && code.isNotEmpty)
-                  ? 'adb://$ip:$port?pairingCode=$code'
-                  : '';
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      if (qrData.isEmpty) {
-                        Get.snackbar('Error', 'Please fill all fields to generate QR code.');
-                      } else {
-                        // Just trigger rebuild
-                        (context as Element).markNeedsBuild();
-                      }
+            ElevatedButton(
+              onPressed: qrData.isEmpty
+                  ? null
+                  : () {
+                      setState(() {});
                     },
-                    child: const Text('Generate QR Code'),
-                  ),
-                  const SizedBox(height: 8),
-                  if (qrData.isNotEmpty)
-                    Center(
-                      child: SizedBox(
-                        width: 180,
-                        height: 180,
-                        child: Card(
-                          elevation: 4,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: QrImageView(
-                              data: qrData,
-                              version: QrVersions.auto,
-                              size: 160.0,
-                            ),
-                          ),
-                        ),
+              child: const Text('Generate QR Code'),
+            ),
+            if (qrData.isEmpty && (portController.text.isEmpty || codeController.text.isEmpty))
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Please enter the port and pairing code to generate the QR code.',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+              ),
+            const SizedBox(height: 8),
+            if (qrData.isNotEmpty)
+              Center(
+                child: SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 160.0,
                       ),
                     ),
-                ],
-              );
-            }),
+                  ),
+                ),
+              ),
             const SizedBox(height: 24),
             const Text('Scan QR to Pair:'),
             if (!Platform.isWindows)
