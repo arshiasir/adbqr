@@ -38,6 +38,23 @@ class HomeController extends GetxController {
     }
   }
 
+  void handleQrScanWithFeedback(String qr, dynamic context) {
+    final uri = Uri.tryParse(qr);
+    if (uri != null && uri.scheme == 'adb') {
+      final ip = uri.host;
+      final port = uri.port.toString();
+      final code = uri.queryParameters['pairingCode'] ?? '';
+      if (ip.isNotEmpty && port.isNotEmpty && code.isNotEmpty) {
+        pairDevice(ip, port, code);
+        Get.snackbar('ADB Pairing', 'Attempting to pair with $ip:$port using code $code');
+      } else {
+        Get.snackbar('QR Error', 'QR code missing IP, port, or pairing code.');
+      }
+    } else {
+      Get.snackbar('QR Error', 'Invalid QR code format.');
+    }
+  }
+
   List<String> _parseDevices(String output) {
     final lines = output.split('\n');
     return lines.where((line) => line.contains('\tdevice')).toList();
