@@ -41,6 +41,7 @@ dependencies:
   zxing2: ^0.2.4
   qr_flutter: ^4.1.0
   network_info_plus: ^5.0.2
+  window_size: ^0.1.0
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,5 @@
-
-
-
 import 'dart:io';
+import 'dart:async';
 
 import 'package:get/get.dart';
 
@@ -10,13 +8,25 @@ class HomeController extends GetxController {
   final RxString adbCommand = ''.obs;
   final int adbPort = 5555;
   final RxBool isLoading = true.obs;
-  final RxList<String> devices = <String>[].obs;
+  RxList<String> devices = <String>[].obs;
+  final RxString adbLog = ''.obs;
+  Process? _logcatProcess;
+  Timer? _deviceRefreshTimer;
 
   @override
   void onInit() {
     super.onInit();
     getLocalIp();
     fetchAdbDevices();
+    _deviceRefreshTimer = Timer.periodic(Duration(seconds: 3), (timer) {
+      fetchAdbDevices();
+    });
+  }
+
+  @override
+  void onClose() {
+    _deviceRefreshTimer?.cancel();
+    super.onClose();
   }
 
   Future<void> getLocalIp() async {
@@ -52,7 +62,8 @@ class HomeController extends GetxController {
         final lines = (result.stdout as String).split('\n');
         final deviceList = <String>[];
         for (var line in lines) {
-          if (line.trim().isEmpty || line.startsWith('List of devices')) continue;
+          if (line.trim().isEmpty || line.startsWith('List of devices'))
+            continue;
           final parts = line.split('\t');
           if (parts.length == 2 && parts[1] == 'device') {
             deviceList.add(parts[0]);
@@ -64,6 +75,43 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       devices.clear();
+    }
+  }
+
+  Future<void> startAdbLogcat() async {
+    try {
+      _logcatProcess = await Process.start('adb', ['logcat']);
+      adbLog.value = '';
+      _logcatProcess!.stdout.transform(SystemEncoding().decoder).listen((data) {
+        adbLog.value += data;
+      });
+      _logcatProcess!.stderr.transform(SystemEncoding().decoder).listen((data) {
+        adbLog.value += '\n[stderr] $data';
+      });
+    } catch (e) {
+      adbLog.value = 'Error starting logcat: $e';
+    }
+  }
+
+  Future<void> stopAdbLogcat() async {
+    try {
+      await _logcatProcess?.kill();
+      _logcatProcess = null;
+    } catch (e) {
+      adbLog.value += '\nError stopping logcat: $e';
+    }
+  }
+
+  Future<void> disconnectDevice(String device) async {
+    try {
+      final result = await Process.run('adb', ['disconnect', device]);
+      if (result.exitCode == 0) {
+        fetchAdbDevices();
+      } else {
+        // Optionally handle error
+      }
+    } catch (e) {
+      // Optionally handle error
     }
   }
 }
