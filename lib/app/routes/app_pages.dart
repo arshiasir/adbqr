@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
-import '../pages/home_page.dart';
-import '../bindings/home_binding.dart';
+import '../home/home_page.dart';
+import '../home/home_binding.dart';
 
 class AppPages {
   static const initial = '/';
