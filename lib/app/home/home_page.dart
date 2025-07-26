@@ -26,6 +26,11 @@ class HomePage extends GetView<HomeController> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (controller.devices.isNotEmpty) ...[
+                  Text('Connected Devices:', style: Get.theme.textTheme.titleMedium),
+                  ...controller.devices.map((d) => Text(d, style: Get.theme.textTheme.bodyMedium)),
+                  const SizedBox(height: 20),
+                ],
                 QrImageView(
                   data: controller.adbCommand.value,
                   version: QrVersions.auto,

@@ -10,11 +10,13 @@ class HomeController extends GetxController {
   final RxString adbCommand = ''.obs;
   final int adbPort = 5555;
   final RxBool isLoading = true.obs;
+  final RxList<String> devices = <String>[].obs;
 
   @override
   void onInit() {
     super.onInit();
     getLocalIp();
+    fetchAdbDevices();
   }
 
   Future<void> getLocalIp() async {
@@ -43,4 +45,25 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> fetchAdbDevices() async {
+    try {
+      final result = await Process.run('adb', ['devices']);
+      if (result.exitCode == 0) {
+        final lines = (result.stdout as String).split('\n');
+        final deviceList = <String>[];
+        for (var line in lines) {
+          if (line.trim().isEmpty || line.startsWith('List of devices')) continue;
+          final parts = line.split('\t');
+          if (parts.length == 2 && parts[1] == 'device') {
+            deviceList.add(parts[0]);
+          }
+        }
+        devices.assignAll(deviceList);
+      } else {
+        devices.clear();
+      }
+    } catch (e) {
+      devices.clear();
+    }
+  }
 }
